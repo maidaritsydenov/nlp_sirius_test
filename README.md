@@ -21,6 +21,9 @@ ___
 Требования и развертывание:
 1. Скачать модель [model-q4_K.gguf]((https://huggingface.co/IlyaGusev/saiga_llama3_8b_gguf/tree/main)) с HF карточки модели в папку models/saiga_llama3_q4/
 2. Указать путь к модели в файле make_llm_answer
+3. Указать токен бота в файле app.py
+4. Запустить файл app.py
+
 * Инференс генеративной модели происходит через CPU (llama-cpp-python)
 * Получение эмбеддингов - через GPU
 * RAM >= 16gb
