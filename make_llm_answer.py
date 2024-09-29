@@ -29,11 +29,11 @@ class LlamaInference:
         )["choices"][0]["message"]["content"]
         return llm_answer
 
-if __name__ == "__main__":
-    model_path = "models/saiga_llama3_q4/model-q4_K.gguf"
-    llm_assistant = LlamaInference(model_path=model_path)
-    # user_message = "У кого был арендован Россией комплекс Байконур?"
-    # user_message = "Население Шымкента в прежних границах в начале 2015 года?"
-    user_message = "Кем был ослеплен князь Василий Тёмный?"
-    answer = llm_assistant.interact(user_message)
-    print(answer)
+# if __name__ == "__main__":
+#     model_path = "models/saiga_llama3_q4/model-q4_K.gguf"
+#     llm_assistant = LlamaInference(model_path=model_path)
+#     # user_message = "У кого был арендован Россией комплекс Байконур?"
+#     # user_message = "Население Шымкента в прежних границах в начале 2015 года?"
+#     user_message = "Кем был ослеплен князь Василий Тёмный?"
+#     answer = llm_assistant.interact(user_message)
+#     print(answer)
