@@ -1,6 +1,6 @@
 dataset/*
 db_embedds/*
-models/*
+models/saiga_llama3_q4/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
