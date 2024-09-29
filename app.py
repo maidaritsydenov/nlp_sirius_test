@@ -6,7 +6,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from make_embeddings import CreateEmbeddings
 from make_llm_answer import LlamaInference
-from main import QnA_assistant
+from qna_assistant import QnA_assistant
 
 # Настраиваем логирование
 logging.basicConfig(
@@ -28,7 +28,6 @@ if not os.path.exists(DATA_DICT_PATH):
 
     data_dict = {}
 
-
     def get_data_dict(row):
         question = row["question"]
         answer = row["answers"]["text"][0]
@@ -44,9 +43,9 @@ if not os.path.exists(DATA_DICT_PATH):
 else:
     data_dict = pickle.load(open(DATA_DICT_PATH, "rb"))
 
-# Создание моделей и подготовка данных
+
 embedds_model = CreateEmbeddings()
-embeddings_raw, questions_list, answers_list = embedds_model.get_embeddings(data_dict)
+embeddings_raw, questions_list, answers_list, tfidf_matrix  = embedds_model.get_embeddings(data_dict)
 llm_assistant = LlamaInference()
 assistant = QnA_assistant(
     embedds_model,
@@ -54,7 +53,8 @@ assistant = QnA_assistant(
     embeddings_raw,
     questions_list,
     answers_list,
-    threshold=0.93
+    tfidf_matrix,
+    threshold=0.9
 )
 
 async def start(update: Update, context) -> None:
@@ -65,7 +65,7 @@ async def handle_message(update: Update, context) -> None:
     user_question = update.message.text
     logger.info(f"Получен вопрос: {user_question}")
     # Получение ответа на вопрос
-    answer = assistant.main(user_question)
+    answer = assistant.get_answer(user_question)
     # Ответ пользователю
     await update.message.reply_text(answer)
 

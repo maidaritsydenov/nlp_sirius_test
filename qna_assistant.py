@@ -1,12 +1,13 @@
-import os
-import pickle
-import pandas as pd
 import numpy as np
 import torch
+from sklearn.metrics.pairwise import cosine_similarity
 from make_embeddings import CreateEmbeddings
 from make_llm_answer import LlamaInference
 
+
 DATA_DICT_PATH = "./db_embedds/data_dict.pickle"
+EMBEDDS_W = 0.7
+TFIDF_W = 0.3
 
 class QnA_assistant:
     def __init__(
@@ -16,6 +17,7 @@ class QnA_assistant:
             embeddings_raw,
             questions_list,
             answers_list,
+            tfidf_matrix,
             threshold: float = 0.92):
 
         self.embedds_model: CreateEmbeddings = embedds_model
@@ -23,13 +25,15 @@ class QnA_assistant:
         self.embeddings_raw = embeddings_raw
         self.questions_list = questions_list
         self.answers_list = answers_list
+        self.tfidf_matrix = tfidf_matrix
         self.threshold = threshold
+        print("DEBUG INFO: threshold:", self.threshold)
 
-    def main(self, text: str) -> str:
+    def get_answer(self, text: str) -> str:
         print(f"INFO: user question: {text}")
-        sorted_index, scores = self.calc_cos_similarity(text)
+        sorted_index, scores = self.calc_combined_similarity(text)
         best_match_idx = sorted_index[0]
-        cos_score = scores[best_match_idx].numpy()
+        cos_score = scores[best_match_idx]
 
         # Если есть похожий вопрос
         print(f"INFO: {float(cos_score) = }")
@@ -65,49 +69,24 @@ class QnA_assistant:
         llm_prompt = llm_prompt + f"Дай ответ на вопрос:\nquestion: {text} answer: "
         return llm_prompt
 
-    def calc_cos_similarity(self, text: str):
+    def calc_combined_similarity(self, text: str):
         embedding = self.embedds_model.get_embedding(text)
-        scores = []
+        tfidf_vector = self.embedds_model.get_tfidf(text)
+
+        scores_embedds = []
+        scores_tfidf = []
+
+        print('DEBUG INFO: get cosine similarity bert')
         cos = torch.nn.CosineSimilarity(dim=1, eps=1e-6)
         for embed in self.embeddings_raw:
             score = cos(torch.Tensor(embedding), torch.Tensor(embed))
-            scores.append(score[0])
-        sorted_index = np.argsort(scores)[::-1]
-        return sorted_index, scores
+            scores_embedds.append(score[0].item())
 
+        print('DEBUG INFO: get cosine similarity tf-idf')
+        scores_tfidf = cosine_similarity(tfidf_vector, self.tfidf_matrix).flatten()
 
-# if __name__ == "__main__":
-#
-#     if not os.path.exists(DATA_DICT_PATH):
-#         train = pd.read_parquet("./dataset/kuznetsoffandrey_sberquad_train.parquet")
-#         valid = pd.read_parquet("./dataset/kuznetsoffandrey_sberquad_valid.parquet")
-#         test = pd.read_parquet("./dataset/kuznetsoffandrey_sberquad_test.parquet")
-#
-#         all_data = pd.concat([train, valid], axis=0)
-#         all_data = pd.concat([all_data, test], axis=0)
-#
-#         data_dict = {}
-#
-#         def get_data_dict(row):
-#             question = row["question"]
-#             answer = row["answers"]["text"][0]
-#             data_dict[str(question)] = str(answer)
-#
-#         all_data.progress_apply(get_data_dict, axis=1)
-#         data_dict = {k: v for k, v in data_dict.items() if v not in ["", " ", None]}
-#
-#         with open("./db_embedds/data_dict.pickle", "wb") as f:
-#             pickle.dump(data_dict, f)
-#
-#     else:
-#         data_dict = pickle.load(open(DATA_DICT_PATH, "rb"))
-#
-#     embedds_model = CreateEmbeddings()
-#     assistant = QnA_assistant()
-#     llm_assistant = LlamaInference()
-#
-#     embeddings_raw, questions_list, answers_list = embedds_model.get_embeddings(data_dict)
-#
-#     user_text = "Как улучшить свою харизму?"
-#     answer = assistant.main(user_text)
-#     print(answer)
+        # Комбинируем
+        combined_scores = EMBEDDS_W * np.array(scores_embedds) + TFIDF_W * np.array(scores_tfidf)
+        sorted_index = np.argsort(combined_scores)[::-1]
+
+        return sorted_index, combined_scores

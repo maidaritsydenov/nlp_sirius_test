@@ -1,12 +1,13 @@
 import os
+import pickle
 from typing import Dict
 from tqdm.auto import tqdm
-import pandas as pd
 import numpy as np
 import torch
 from torch import Tensor
 from transformers import AutoTokenizer, AutoModel
-import pickle
+from sklearn.feature_extraction.text import TfidfVectorizer
+
 
 tqdm.pandas()
 
@@ -16,6 +17,7 @@ class CreateEmbeddings:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.tokenizer = AutoTokenizer.from_pretrained("intfloat/multilingual-e5-base")
         self.model = AutoModel.from_pretrained("intfloat/multilingual-e5-base").to(self.device)
+        self.vectorizer = TfidfVectorizer(max_features=2000, lowercase=True, analyzer="word")
 
     def _average_pool(self, last_hidden_states: Tensor, attention_mask: Tensor) -> Tensor:
         last_hidden = last_hidden_states.masked_fill(~attention_mask[..., None].bool(), 0.0)
@@ -25,11 +27,14 @@ class CreateEmbeddings:
         embeddings_raw_name = './db_embedds/embeddings.npy'
         embeddings_question_name = './db_embedds/embeddings.txt'
         embeddings_answer_name = './db_embedds/embeddings_answer.txt'
+        tfidf_matrix_name = './db_embedds/tfidf_matrix.npy'
+        tfidf_vectorizer_path = './db_embedds/tfidf_vectorizer.pickle'
+
+        questions = ["passage: " + q for q in list(data_dict.keys())]
+        answers = list(data_dict.values())
 
         if not os.path.exists(embeddings_raw_name):
             print("Генерация эмбеддингов.")
-            questions = ["passage: " + q for q in list(data_dict.keys())]
-            answers = list(data_dict.values())
             question_embeddings = []
 
             with torch.no_grad():
@@ -57,17 +62,31 @@ class CreateEmbeddings:
                     f.write(line + '\n')
 
             embeddings_raw = question_embeddings
-            questions_list = questions
-            answers_list = answers
+
         else:
             print("Загрузка готовых эмбеддингов.")
             embeddings_raw = np.load(embeddings_raw_name)
             with open(embeddings_question_name, 'r', encoding='utf-8') as f:
-                questions_list = f.readlines()
+                questions = f.readlines()
             with open(embeddings_answer_name, 'r', encoding='utf-8') as f:
-                answers_list = f.readlines()
+                answers = f.readlines()
 
-        return embeddings_raw, questions_list, answers_list
+        if not os.path.exists(tfidf_vectorizer_path):
+            # Генерация и сохранение TF-IDF
+            print("Генерация TF-IDF.")
+            tfidf_matrix = self.vectorizer.fit_transform(questions).toarray()
+            np.save(tfidf_matrix_name, tfidf_matrix)
+            with open(tfidf_vectorizer_path, 'wb') as f:
+                pickle.dump(self.vectorizer, f)
+
+        else:
+            print("Загрузка готовых эмбеддингов TF-IDF.")
+            tfidf_matrix = np.load(tfidf_matrix_name)
+            with open(tfidf_vectorizer_path, 'rb') as f:
+                self.vectorizer = pickle.load(f)
+
+        return embeddings_raw, questions, answers, tfidf_matrix
+
 
     def get_embedding(self, text: str):
         text = "passage: " + text if "passage" not in text else text
@@ -83,35 +102,5 @@ class CreateEmbeddings:
         )
         return embedding
 
-
-# if __name__ == "__main__":
-#
-#     if not os.path.exists("./db_embedds/data_dict.pickle"):
-#         train = pd.read_parquet("./dataset/kuznetsoffandrey_sberquad_train.parquet")
-#         valid = pd.read_parquet("./dataset/kuznetsoffandrey_sberquad_valid.parquet")
-#         test = pd.read_parquet("./dataset/kuznetsoffandrey_sberquad_test.parquet")
-#
-#         all_data = pd.concat([train, valid], axis=0)
-#         all_data = pd.concat([all_data, test], axis=0)
-#
-#         data_dict = {}
-#
-#         def get_data_dict(row):
-#             question = row["question"]
-#             answer = row["answers"]["text"][0]
-#             data_dict[str(question)] = str(answer)
-#
-#         all_data.progress_apply(get_data_dict, axis=1)
-#         data_dict = {k: v for k, v in data_dict.items() if v not in ["", " ", None]}
-#
-#         with open("./db_embedds/data_dict.pickle", "wb") as f:
-#             pickle.dump(data_dict, f)
-#
-#     else:
-#         data_dict = pickle.load(open("./db_embedds/data_dict.pickle", "rb"))
-#
-#     embedds_model = CreateEmbeddings()
-#     embeddings_raw, questions_list, answers_list = embedds_model.get_embeddings(data_dict)
-#     print(embeddings_raw[0][:30])
-#     print(questions_list[0][:30])
-#     print(answers_list[0][:30])
+    def get_tfidf(self, text: str):
+        return self.vectorizer.transform([text]).toarray()
