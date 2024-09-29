@@ -1,4 +1,5 @@
-dataset/
+dataset/*
+db_embedds/*
 models/*
 
 # Byte-compiled / optimized / DLL files
