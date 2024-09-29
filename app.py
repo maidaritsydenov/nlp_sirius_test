@@ -71,7 +71,7 @@ async def handle_message(update: Update, context) -> None:
 
 
 def main() -> None:
-    BOT_TOKEN = "6068998865:AAG3wELNimQPbkiuuIfCTzHmNXo-J7ki9Yw"
+    BOT_TOKEN = "your bot token from bot father"
     application = Application.builder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
