@@ -70,8 +70,7 @@ class CreateEmbeddings:
         return embeddings_raw, questions_list, answers_list
 
     def get_embedding(self, text: str):
-        if "passage" not in text:
-            text = "passage: " + text
+        text = "passage: " + text if "passage" not in text else text
         batch_dict = self.tokenizer(
             text, max_length=512, padding=True, truncation=True, return_tensors="pt"
         )
