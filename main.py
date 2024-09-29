@@ -1,4 +1,6 @@
+import os
 import pickle
+import pandas as pd
 import numpy as np
 import torch
 from make_embeddings import CreateEmbeddings
@@ -65,13 +67,37 @@ class QnA_assistant:
 
 
 if __name__ == "__main__":
+
+    if not os.path.exists(DATA_DICT_PATH):
+        train = pd.read_parquet("./dataset/kuznetsoffandrey_sberquad_train.parquet")
+        valid = pd.read_parquet("./dataset/kuznetsoffandrey_sberquad_valid.parquet")
+        test = pd.read_parquet("./dataset/kuznetsoffandrey_sberquad_test.parquet")
+
+        all_data = pd.concat([train, valid], axis=0)
+        all_data = pd.concat([all_data, test], axis=0)
+
+        data_dict = {}
+
+        def get_data_dict(row):
+            question = row["question"]
+            answer = row["answers"]["text"][0]
+            data_dict[str(question)] = str(answer)
+
+        all_data.progress_apply(get_data_dict, axis=1)
+        data_dict = {k: v for k, v in data_dict.items() if v not in ["", " ", None]}
+
+        with open("./db_embedds/data_dict.pickle", "wb") as f:
+            pickle.dump(data_dict, f)
+
+    else:
+        data_dict = pickle.load(open(DATA_DICT_PATH, "rb"))
+
     embedds_model = CreateEmbeddings()
     assistant = QnA_assistant()
     llm_assistant = LlamaInference()
 
-    data_dict = pickle.load(open(DATA_DICT_PATH, "rb"))
     embeddings_raw, questions_list, answers_list = embedds_model.get_embeddings(data_dict)
 
-    user_text = "Что такое счастье?"
+    user_text = "Как улучшить свою харизму?"
     answer = assistant.main(user_text)
     print(answer)
