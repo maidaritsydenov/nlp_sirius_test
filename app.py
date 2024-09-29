@@ -53,7 +53,8 @@ assistant = QnA_assistant(
     llm_assistant,
     embeddings_raw,
     questions_list,
-    answers_list
+    answers_list,
+    threshold=0.93
 )
 
 async def start(update: Update, context) -> None:
