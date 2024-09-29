@@ -103,6 +103,7 @@ if __name__ == "__main__":
             data_dict[str(question)] = str(answer)
 
         all_data.progress_apply(get_data_dict, axis=1)
+        data_dict = {k: v for k, v in data_dict.items() if v not in ["", " ", None]}
 
         with open("./db_embedds/data_dict.pickle", "wb") as f:
             pickle.dump(data_dict, f)
