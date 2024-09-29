@@ -19,7 +19,8 @@
 Вроде звучит просто и логично. Попробуем реализовать
 ___
 Требования и развертывание:
-* Скачать модель с [HF карточки модели](https://huggingface.co/IlyaGusev/saiga_llama3_8b_gguf/tree/main) в папку models/saiga_llama3_q4/
+1. Скачать модель [model-q4_K.gguf]((https://huggingface.co/IlyaGusev/saiga_llama3_8b_gguf/tree/main)) с HF карточки модели в папку models/saiga_llama3_q4/
+2. Указать путь к модели в файле make_llm_answer
 * Инференс генеративной модели происходит через CPU (llama-cpp-python)
 * Получение эмбеддингов - через GPU
 * RAM >= 16gb
