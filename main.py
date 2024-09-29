@@ -30,42 +30,37 @@ class QnA_assistant:
         cos_score = scores[best_match_idx].numpy()
 
         # Если есть похожий вопрос
-        if cos_score >= self.threshold:
+        print(f"INFO: {float(cos_score) = }")
+        if float(cos_score) >= self.threshold:
             # Возвращаем ответ на этот вопрос
             _, supposed_answer = questions_list[best_match_idx], answers_list[best_match_idx]
-            print(f"INFO: {cos_score = }")
             print(f"INFO: answer: {supposed_answer}")
             return supposed_answer
         else:
             # Иначе создаем промпт для llm
             llm_prompt = self._get_prompt(text, sorted_index)
+            print(f"INFO: llm_prompt:\n{llm_prompt}")
             # Генерим ответ с помощью llm
-            full_llm_answer = llm_assistant.interact(user_message=llm_prompt)
-            llm_answer = full_llm_answer[len(llm_prompt):]
+            llm_answer = llm_assistant.interact(user_message=llm_prompt)
             print(f"INFO: answer: {llm_answer}")
             return llm_answer
 
     def _get_prompt(self, text: str, sorted_index: np.ndarray) -> str:
         """Часть хорошего промпт-инжиниринга."""
-        # Vicuna 1.1 as stated on a model card
-        llm_prompt = f"A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions.\nUSER: "
         # Sub-instruction for specific task
-        llm_prompt = llm_prompt + "Answer the question or give the solution to the problem. Answer using your own understanding of the context. Be concise and precise. Answer in Russian.\n"
-        # User question
-        llm_prompt = llm_prompt + f"Запрос пользователя: {text}\n"
+        llm_prompt = "Твоя задача - дать ответ на вопрос. Отвечай на русском языке.\n"
         # Retrieval-Augmented Generation, 4 nearest examples from embedding database + solutions
-        llm_prompt = llm_prompt + "Context: "
+        llm_prompt = llm_prompt + "Следуй примерам question - answer:\n"
         for i in range(0, 3):
             question = str.replace(questions_list[sorted_index[i]], "\n", "")
             question = str.replace(question, "passage: ", "")
             answer = str.replace(answers_list[sorted_index[i]], "\n", "")
-            story_text = f"Вопрос: {question}, Ответ: {answer}\n"
-            llm_prompt = llm_prompt + story_text
 
-        # LLM answer
-        llm_prompt = str.replace(llm_prompt, "..", ".")
-        llm_prompt = llm_prompt + "\nASSISTANT: "
+            if answer not in ["", " ", None]:
+                llm_prompt = llm_prompt + f"question: {question}, answer: {answer}\n"
 
+        # User question
+        llm_prompt = llm_prompt + f"Дай ответ на вопрос:\nquestion: {text} answer: "
         return llm_prompt
 
 
@@ -77,6 +72,6 @@ if __name__ == "__main__":
     data_dict = pickle.load(open(DATA_DICT_PATH, "rb"))
     embeddings_raw, questions_list, answers_list = embedds_model.get_embeddings(data_dict)
 
-    user_text = "Из чего появилось графито-углистое вещество?"
+    user_text = "Что такое счастье?"
     answer = assistant.main(user_text)
     print(answer)
